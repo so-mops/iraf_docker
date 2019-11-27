@@ -1,0 +1,54 @@
+#!/bin/bash
+
+# this script wraps the running of iraf within its container and sets up the X windows configuration so
+# the graphics windows work properly. it maps the current working directory into the container as /home/iraf/data
+# and runs 'xgterm -e cl' there. if you want to switch to a different directory on the host, you'll need to exit
+# and then rerun this script there.
+
+
+
+while true; do
+	echo
+	echo _______________________________________________________
+	echo Please type in the absolute path to your data directory. 
+	echo like: /home/bigobs/betsy 
+
+	read dirname
+
+	if [[  $dirname != "/home/bigobs/"* ]]; then
+		echo "Bad dirname!. Must be in /home/bigobs/*";
+		continue;
+	fi
+	
+
+	if [ -d "$dirname" ]; then
+		echo Moving to $dirname
+		break;
+	else
+		echo Directory does not exist! Would you like to create it?;
+		echo \"yes\" or \"no\";
+		read create;
+		echo $create;
+		if [ $create = "yes" ]; then
+			echo Making directory %dirname;
+			mkdir -p $dirname
+			break;
+		fi
+	fi
+done
+
+cd $dirname
+
+xhost + 127.0.0.1
+
+docker run -ti --rm \
+    -e DISPLAY=:0 \
+    -e DATADIR=${dirname} \
+    -p 6540:6540 \
+    -v /tmp/.X11-unix:/tmp/.X11-unix \
+    -v ${dirname}:${dirname} \
+    iraf:latest \
+    #/bin/bash -c "cd /home/bigobs; source .bashrc; conda activate iraf27; cd /home/bigobs/watcher; xgterm -sb -sl 5000 -geometry 80x48 -fn 10x20 -cr red -bg grey -e cl"
+    /bin/bash
+
+xhost - 127.0.0.1
